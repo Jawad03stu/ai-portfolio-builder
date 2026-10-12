@@ -41,6 +41,15 @@ useEffect(() => {
       [field]: value,
     }));
   };
+  const resetPortfolio = () => {
+  const confirmed = window.confirm(
+    'Are you sure you want to reset your portfolio? This cannot be undone.'
+  );
+
+  if (!confirmed) return;
+
+  setPortfolio({ ...defaultPortfolio });
+};
 
   const skills = portfolio.skills
     .split(',')
@@ -56,10 +65,18 @@ useEffect(() => {
 
         <span className="builder-status">Draft portfolio</span>
 
-        <a className="btn btn-outline" href="/">
-          Back to home
-        </a>
-      </header>
+<button
+  type="button"
+  className="btn btn-outline"
+  onClick={resetPortfolio}
+>
+  Reset draft
+</button>
+
+<a className="btn btn-outline" href="/">
+  Back to home
+</a>
+</header>
 
       <div className="builder-heading">
         <p className="eyebrow">PORTFOLIO WORKSPACE</p>
