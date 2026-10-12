@@ -1,8 +1,12 @@
-
+import PortfolioBuilder from './PortfolioBuilder.jsx';
 import { useState } from 'react';
 
 function App() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showBuilder, setShowBuilder] = useState(false);
+  if (showBuilder) {
+  return <PortfolioBuilder />;
+}
   return (
     <div className="app">
      
@@ -45,9 +49,12 @@ function App() {
       Log in
     </button>
 
-    <a className="btn btn-primary" href="#how-it-works">
-      Get started
-    </a>
+    <button
+  className="btn btn-primary"
+  onClick={() => setShowBuilder(true)}
+>
+  Get started
+</button>
   </div>
 </header>
 
@@ -73,9 +80,12 @@ function App() {
 
             
 <div className="hero-actions">
-  <a className="btn btn-primary" href="#how-it-works">
-    Build my portfolio →
-  </a>
+  <button
+  className="btn btn-primary"
+  onClick={() => setShowBuilder(true)}
+>
+  Build my portfolio →
+</button>
 
   <a className="btn btn-outline" href="#templates">
     Explore templates
