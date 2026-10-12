@@ -1,21 +1,39 @@
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 function PortfolioBuilder() {
-  const [portfolio, setPortfolio] = useState({
-    name: 'Jawad Riaz',
-    role: 'Aspiring Machine Learning Engineer',
-    about:
-      'I am a technology enthusiast interested in building useful applications with software development and machine learning.',
-    email: '',
-    location: 'Pakistan',
-    skills: 'Python, Machine Learning, C++, HTML, CSS',
-    projectTitle: 'AI Portfolio Builder',
-    projectDescription:
-      'A web application that helps people create professional portfolios with AI-powered assistance.',
-    github: 'https://github.com/Jawad03stu',
-    linkedin: '',
-  });
+  const defaultPortfolio = {
+  name: 'Jawad Riaz',
+  role: 'Aspiring Machine Learning Engineer',
+  about: 'I am a technology enthusiast interested in building useful applications with software development and machine learning.',
+  email: '',
+  location: 'Pakistan',
+  skills: 'Python, Machine Learning, C++, HTML, CSS',
+  projectTitle: 'AI Portfolio Builder',
+  projectDescription: 'A web application that helps people create professional portfolios with AI-powered assistance.',
+  github: 'https://github.com/Jawad03stu',
+  linkedin: '',
+};
+
+const [portfolio, setPortfolio] = useState(() => {
+  try {
+    const savedPortfolio = localStorage.getItem('portifyai-draft');
+
+    return savedPortfolio
+      ? { ...defaultPortfolio, ...JSON.parse(savedPortfolio) }
+      : defaultPortfolio;
+  } catch {
+    return defaultPortfolio;
+  }
+});
+
+useEffect(() => {
+  try {
+    localStorage.setItem('portifyai-draft', JSON.stringify(portfolio));
+  } catch {
+    console.error('Could not save the portfolio draft.');
+  }
+}, [portfolio]);
 
   const updateField = (field, value) => {
     setPortfolio((previous) => ({
