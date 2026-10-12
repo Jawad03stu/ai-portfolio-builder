@@ -16,48 +16,52 @@ const defaultPortfolio = {
         'A web application that helps people create professional portfolios with AI-powered assistance.',
     },
   ],
+  education: [],
+  experience: [],
+  certifications: [],
   github: 'https://github.com/Jawad03stu',
   linkedin: '',
 };
 
-let nextProjectId = 0;
+let nextEntryId = 0;
 
-function createProjectId(existingIds = new Set()) {
+function createEntryId(existingIds = new Set()) {
   let id;
 
   do {
     id =
       globalThis.crypto?.randomUUID?.() ??
-      `project-${Date.now()}-${nextProjectId++}`;
+      `entry-${Date.now()}-${nextEntryId++}`;
   } while (existingIds.has(id));
 
   return id;
 }
 
-function normalizeProjects(projects) {
-  const usedIds = new Set();
+function normalizeEntries(entries, fields, usedIds = new Set(), withPresent = false) {
+  if (!Array.isArray(entries)) return [];
 
-  return projects
+  return entries
     .filter(
-      (project) =>
-        project && typeof project === 'object' && !Array.isArray(project)
+      (entry) => entry && typeof entry === 'object' && !Array.isArray(entry)
     )
-    .map((project) => {
+    .map((entry) => {
       const savedId =
-        typeof project.id === 'string' || typeof project.id === 'number'
-          ? String(project.id)
+        typeof entry.id === 'string' || typeof entry.id === 'number'
+          ? String(entry.id)
           : '';
       const id =
-        savedId && !usedIds.has(savedId) ? savedId : createProjectId(usedIds);
+        savedId && !usedIds.has(savedId) ? savedId : createEntryId(usedIds);
 
       usedIds.add(id);
 
-      return {
-        id,
-        title: typeof project.title === 'string' ? project.title : '',
-        description:
-          typeof project.description === 'string' ? project.description : '',
-      };
+      return fields.reduce(
+        (normalized, field) => {
+          normalized[field] =
+            typeof entry[field] === 'string' ? entry[field] : '';
+          return normalized;
+        },
+        withPresent ? { id, present: entry.present === true } : { id }
+      );
     });
 }
 
@@ -77,14 +81,19 @@ function loadPortfolio() {
       return defaultPortfolio;
     }
 
+    const usedIds = new Set();
     let projects;
     if (Array.isArray(parsedPortfolio.projects)) {
-      projects = normalizeProjects(parsedPortfolio.projects);
+      projects = normalizeEntries(
+        parsedPortfolio.projects,
+        ['title', 'description'],
+        usedIds
+      );
     } else if (
       Object.hasOwn(parsedPortfolio, 'projectTitle') ||
       Object.hasOwn(parsedPortfolio, 'projectDescription')
     ) {
-      projects = normalizeProjects([
+      projects = normalizeEntries([
         {
           id: 'migrated-project',
           title:
@@ -96,10 +105,31 @@ function loadPortfolio() {
               ? parsedPortfolio.projectDescription
               : '',
         },
-      ]);
+      ], ['title', 'description'], usedIds);
     } else {
-      projects = normalizeProjects(defaultPortfolio.projects);
+      projects = normalizeEntries(
+        defaultPortfolio.projects,
+        ['title', 'description'],
+        usedIds
+      );
     }
+    const education = normalizeEntries(
+      parsedPortfolio.education ?? defaultPortfolio.education,
+      ['institution', 'degree', 'fieldOfStudy', 'startDate', 'endDate', 'description'],
+      usedIds,
+      true
+    );
+    const experience = normalizeEntries(
+      parsedPortfolio.experience ?? defaultPortfolio.experience,
+      ['company', 'jobTitle', 'employmentType', 'startDate', 'endDate', 'location', 'description'],
+      usedIds,
+      true
+    );
+    const certifications = normalizeEntries(
+      parsedPortfolio.certifications ?? defaultPortfolio.certifications,
+      ['name', 'issuer', 'issueDate', 'expirationDate', 'credentialUrl'],
+      usedIds
+    );
 
     return {
       name:
@@ -127,6 +157,9 @@ function loadPortfolio() {
           ? parsedPortfolio.skills
           : defaultPortfolio.skills,
       projects,
+      education,
+      experience,
+      certifications,
       github:
         typeof parsedPortfolio.github === 'string'
           ? parsedPortfolio.github
@@ -157,8 +190,90 @@ function isValidSocialUrl(value) {
   }
 }
 
+function formatDate(value) {
+  const parts = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!parts) return '';
+
+  const [, year, month, day] = parts;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  if (
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() !== Number(month) - 1 ||
+    date.getDate() !== Number(day)
+  ) {
+    return '';
+  }
+
+  return new Intl.DateTimeFormat(undefined, {
+    month: 'short',
+    year: 'numeric',
+  }).format(date);
+}
+
+const sectionDefinitions = {
+  education: {
+    singular: 'education entry',
+    addLabel: 'education',
+    fields: [
+      { name: 'institution', label: 'Institution name', required: true },
+      { name: 'degree', label: 'Degree', required: true },
+      { name: 'fieldOfStudy', label: 'Field of study' },
+      { name: 'startDate', label: 'Start date', type: 'date' },
+      { name: 'endDate', label: 'End date', type: 'date' },
+      { name: 'description', label: 'Description', type: 'textarea' },
+    ],
+    requiredFields: ['institution', 'degree'],
+    nameField: 'institution',
+    presentLabel: 'Currently studying here',
+  },
+  experience: {
+    singular: 'work experience entry',
+    addLabel: 'work experience',
+    fields: [
+      { name: 'company', label: 'Company name', required: true },
+      { name: 'jobTitle', label: 'Job title', required: true },
+      {
+        name: 'employmentType',
+        label: 'Employment type',
+        type: 'select',
+        options: [
+          'Full-time',
+          'Part-time',
+          'Contract',
+          'Freelance',
+          'Internship',
+          'Temporary',
+          'Self-employed',
+          'Other',
+        ],
+      },
+      { name: 'startDate', label: 'Start date', type: 'date' },
+      { name: 'endDate', label: 'End date', type: 'date' },
+      { name: 'location', label: 'Location' },
+      { name: 'description', label: 'Description', type: 'textarea' },
+    ],
+    requiredFields: ['company', 'jobTitle'],
+    nameField: 'company',
+    presentLabel: 'Currently working here',
+  },
+  certifications: {
+    singular: 'certification',
+    addLabel: 'certification',
+    fields: [
+      { name: 'name', label: 'Certification name', required: true },
+      { name: 'issuer', label: 'Issuing organization', required: true },
+      { name: 'issueDate', label: 'Issue date', type: 'date' },
+      { name: 'expirationDate', label: 'Expiration date', type: 'date' },
+      { name: 'credentialUrl', label: 'Credential URL', type: 'url' },
+    ],
+    requiredFields: ['name', 'issuer'],
+    nameField: 'name',
+  },
+};
+
 function PortfolioBuilder() {
   const [portfolio, setPortfolio] = useState(loadPortfolio);
+  const [touchedFields, setTouchedFields] = useState({});
 
   useEffect(() => {
     try {
@@ -185,7 +300,162 @@ function PortfolioBuilder() {
     setPortfolio({
       ...defaultPortfolio,
       projects: defaultPortfolio.projects.map((project) => ({ ...project })),
+      education: [],
+      experience: [],
+      certifications: [],
     });
+  };
+
+  const updateEntry = (section, entryId, field, value) => {
+    setPortfolio((previous) => ({
+      ...previous,
+      [section]: previous[section].map((entry) =>
+        entry.id === entryId ? { ...entry, [field]: value } : entry
+      ),
+    }));
+  };
+
+  const addEntry = (section) => {
+    const definition = sectionDefinitions[section];
+    const fields = definition.fields.map((field) => field.name);
+    const usedIds = new Set(
+      ['projects', 'education', 'experience', 'certifications'].flatMap(
+        (key) => portfolio[key].map((entry) => entry.id)
+      )
+    );
+    const newEntry = fields.reduce(
+      (entry, field) => ({ ...entry, [field]: '' }),
+      {
+        id: createEntryId(usedIds),
+        ...(definition.presentLabel ? { present: false } : {}),
+      }
+    );
+
+    setPortfolio((previous) => ({
+      ...previous,
+      [section]: [...previous[section], newEntry],
+    }));
+  };
+
+  const removeEntry = (section, entry) => {
+    const definition = sectionDefinitions[section];
+    const title = entry[definition.nameField].trim() || definition.singular;
+    if (!window.confirm(`Remove "${title}"?`)) return;
+
+    setPortfolio((previous) => ({
+      ...previous,
+      [section]: previous[section].filter((item) => item.id !== entry.id),
+    }));
+  };
+
+  const touchEntryField = (section, entryId, fieldName) => {
+    setTouchedFields((previous) => ({
+      ...previous,
+      [`${section}-${entryId}-${fieldName}`]: true,
+    }));
+  };
+
+  const renderEntriesEditor = (section) => {
+    const definition = sectionDefinitions[section];
+
+    return (
+      <>
+        {portfolio[section].map((entry, index) => (
+          <div className="project-form-card" key={entry.id}>
+            <div className="project-form-heading">
+              <h4>{definition.singular[0].toUpperCase() + definition.singular.slice(1)} {index + 1}</h4>
+              <button
+                type="button"
+                className="btn btn-outline"
+                aria-label={`Remove ${definition.singular} ${index + 1}`}
+                onClick={() => removeEntry(section, entry)}
+              >
+                Remove
+              </button>
+            </div>
+
+            {definition.fields.map((field) => {
+              if (field.name === 'endDate' && entry.present) return null;
+
+              const inputId = `${section}-${entry.id}-${field.name}`;
+              const isRequired = definition.requiredFields.includes(field.name);
+              const fieldWasTouched =
+                touchedFields[`${section}-${entry.id}-${field.name}`];
+              const hasError = fieldWasTouched && (
+                (isRequired && !entry[field.name].trim()) ||
+                (field.type === 'url' &&
+                  entry[field.name] &&
+                  !isValidSocialUrl(entry[field.name]))
+              );
+              const errorMessage =
+                isRequired && !entry[field.name].trim()
+                  ? `${field.label} is required.`
+                  : 'Enter a valid http or https URL.';
+              const commonProps = {
+                id: inputId,
+                value: entry[field.name],
+                required: field.required,
+                'aria-invalid': hasError || undefined,
+                'aria-describedby': hasError ? `${inputId}-error` : undefined,
+                onBlur: () => touchEntryField(section, entry.id, field.name),
+                onChange: (event) =>
+                  updateEntry(section, entry.id, field.name, event.target.value),
+              };
+
+              return (
+                <div key={field.name}>
+                  <label htmlFor={inputId}>
+                    {field.label}{field.required ? ' *' : ''}
+                  </label>
+                  {field.type === 'textarea' ? (
+                    <textarea {...commonProps} rows="4" />
+                  ) : field.type === 'select' ? (
+                    <select {...commonProps}>
+                      <option value="">Select employment type</option>
+                      {field.options.map((option) => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      {...commonProps}
+                      type={field.type || 'text'}
+                      placeholder={field.type === 'url' ? 'https://example.com/credential' : undefined}
+                    />
+                  )}
+                  {hasError && (
+                    <p className="builder-field-error" id={`${inputId}-error`} role="alert">
+                      {errorMessage}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+
+            {definition.presentLabel && (
+              <label className="builder-checkbox-label" htmlFor={`${section}-${entry.id}-present`}>
+                <input
+                  id={`${section}-${entry.id}-present`}
+                  type="checkbox"
+                  checked={entry.present}
+                  onChange={(event) =>
+                    updateEntry(section, entry.id, 'present', event.target.checked)
+                  }
+                />
+                {definition.presentLabel}
+              </label>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          className="btn btn-outline"
+          onClick={() => addEntry(section)}
+        >
+          + Add {definition.addLabel}
+        </button>
+      </>
+    );
   };
 
   const updateProject = (projectId, field, value) => {
@@ -203,7 +473,7 @@ function PortfolioBuilder() {
       projects: [
         ...previous.projects,
         {
-          id: createProjectId(new Set(previous.projects.map((project) => project.id))),
+          id: createEntryId(new Set(previous.projects.map((project) => project.id))),
           title: '',
           description: '',
         },
@@ -404,6 +674,42 @@ function PortfolioBuilder() {
           <div className="builder-section-heading">
             <span>04</span>
             <div>
+              <h2>Education</h2>
+              <p>Add your academic background.</p>
+            </div>
+          </div>
+
+          {renderEntriesEditor('education')}
+
+          <div className="builder-divider" />
+
+          <div className="builder-section-heading">
+            <span>05</span>
+            <div>
+              <h2>Work experience</h2>
+              <p>Highlight your professional experience.</p>
+            </div>
+          </div>
+
+          {renderEntriesEditor('experience')}
+
+          <div className="builder-divider" />
+
+          <div className="builder-section-heading">
+            <span>06</span>
+            <div>
+              <h2>Certifications</h2>
+              <p>Add professional certifications and credentials.</p>
+            </div>
+          </div>
+
+          {renderEntriesEditor('certifications')}
+
+          <div className="builder-divider" />
+
+          <div className="builder-section-heading">
+            <span>07</span>
+            <div>
               <h2>Social links</h2>
               <p>Give visitors a way to explore your work.</p>
             </div>
@@ -502,6 +808,109 @@ function PortfolioBuilder() {
               <p className="portfolio-project-empty">
                 Add a project to showcase your work.
               </p>
+            )}
+
+            {portfolio.education.length > 0 && (
+              <>
+                <div className="portfolio-preview-divider" />
+                <h4>Education</h4>
+                {portfolio.education.map((entry) => {
+                  const dates = [
+                    formatDate(entry.startDate),
+                    entry.present ? 'Present' : formatDate(entry.endDate),
+                  ].filter(Boolean);
+
+                  return (
+                    <div className="portfolio-detail-card" key={entry.id}>
+                      <h3>{entry.institution || 'Institution name'}</h3>
+                      {(entry.degree || entry.fieldOfStudy) && (
+                        <p className="portfolio-detail-subtitle">
+                          {[entry.degree, entry.fieldOfStudy].filter(Boolean).join(' · ')}
+                        </p>
+                      )}
+                      {dates.length > 0 && (
+                        <p className="portfolio-detail-meta">{dates.join(' – ')}</p>
+                      )}
+                      {entry.description && (
+                        <p className="portfolio-detail-description">{entry.description}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {portfolio.experience.length > 0 && (
+              <>
+                <div className="portfolio-preview-divider" />
+                <h4>Work experience</h4>
+                {portfolio.experience.map((entry) => {
+                  const dates = [
+                    formatDate(entry.startDate),
+                    entry.present ? 'Present' : formatDate(entry.endDate),
+                  ].filter(Boolean);
+                  const details = [
+                    entry.employmentType,
+                    entry.location,
+                    dates.length > 0 ? dates.join(' – ') : '',
+                  ].filter(Boolean);
+
+                  return (
+                    <div className="portfolio-detail-card" key={entry.id}>
+                      <h3>{entry.jobTitle || 'Job title'}</h3>
+                      <p className="portfolio-detail-subtitle">
+                        {entry.company || 'Company name'}
+                      </p>
+                      {details.length > 0 && (
+                        <p className="portfolio-detail-meta">{details.join(' · ')}</p>
+                      )}
+                      {entry.description && (
+                        <p className="portfolio-detail-description">{entry.description}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </>
+            )}
+
+            {portfolio.certifications.length > 0 && (
+              <>
+                <div className="portfolio-preview-divider" />
+                <h4>Certifications</h4>
+                {portfolio.certifications.map((entry) => {
+                  const dates = [
+                    formatDate(entry.issueDate)
+                      ? `Issued ${formatDate(entry.issueDate)}`
+                      : '',
+                    formatDate(entry.expirationDate)
+                      ? `Expires ${formatDate(entry.expirationDate)}`
+                      : '',
+                  ].filter(Boolean);
+
+                  return (
+                    <div className="portfolio-detail-card" key={entry.id}>
+                      <h3>{entry.name || 'Certification name'}</h3>
+                      <p className="portfolio-detail-subtitle">
+                        {entry.issuer || 'Issuing organization'}
+                      </p>
+                      {dates.length > 0 && (
+                        <p className="portfolio-detail-meta">{dates.join(' · ')}</p>
+                      )}
+                      {entry.credentialUrl &&
+                        isValidSocialUrl(entry.credentialUrl) && (
+                          <a
+                            className="portfolio-credential-link"
+                            href={entry.credentialUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            View credential ↗
+                          </a>
+                        )}
+                    </div>
+                  );
+                })}
+              </>
             )}
 
             {(emailIsValid && portfolio.email) ||

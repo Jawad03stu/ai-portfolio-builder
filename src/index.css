@@ -830,7 +830,8 @@ button {
 }
 
 .builder-form input,
-.builder-form textarea {
+.builder-form textarea,
+.builder-form select {
   width: 100%;
   padding: 12px 13px;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -844,13 +845,33 @@ button {
 }
 
 .builder-form input:focus,
-.builder-form textarea:focus {
+.builder-form textarea:focus,
+.builder-form select:focus {
   border-color: var(--accent-strong);
 }
 
 .builder-form input::placeholder,
 .builder-form textarea::placeholder {
   color: #64718a;
+}
+
+.builder-form select {
+  appearance: auto;
+}
+
+.builder-form .builder-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 18px;
+  cursor: pointer;
+}
+
+.builder-form .builder-checkbox-label input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent-strong);
 }
 
 .builder-form textarea {
@@ -1067,6 +1088,55 @@ button {
   color: var(--muted);
   font-size: 12px;
   line-height: 1.8;
+}
+
+.portfolio-detail-card {
+  min-width: 0;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.portfolio-detail-card:last-child {
+  border-bottom: 0;
+}
+
+.portfolio-detail-card h3 {
+  color: #f1f5f9;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 15px;
+}
+
+.portfolio-detail-subtitle {
+  margin-top: 5px;
+  color: #c4b5fd;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.portfolio-detail-meta {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.7;
+}
+
+.portfolio-detail-description {
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.portfolio-credential-link {
+  display: inline-block;
+  margin-top: 9px;
+  color: #c4b5fd;
+  font-size: 11px;
+}
+
+.portfolio-credential-link:hover {
+  color: #e9ddff;
 }
 
 .portfolio-links {
